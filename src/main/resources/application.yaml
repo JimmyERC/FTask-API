@@ -1,3 +1,40 @@
 spring:
   application:
     name: ftask-api
+
+  # Loads local secrets from .env (git-ignored). Real environment variables
+  # take precedence, so production never depends on this file.
+  config:
+    import: "optional:file:.env[.properties]"
+
+  datasource:
+    # Supabase Session pooler (port 5432), e.g.
+    # jdbc:postgresql://aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      # The Supabase free tier limits pooler connections; keep the pool small.
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      # Every pooled connection uses our schema as its search_path.
+      schema: ${spring.flyway.default-schema}
+
+  jpa:
+    hibernate:
+      # Flyway owns the schema; Hibernate only checks that entities match it.
+      ddl-auto: validate
+    # Avoid lazy loading from the web layer; transactions end in the use cases.
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        default_schema: ${spring.flyway.default-schema}
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # Own schema, kept apart from "public", which Supabase manages and
+    # exposes through its Data API. Flyway creates it if it is missing.
+    default-schema: ftask
+    schemas: ftask
